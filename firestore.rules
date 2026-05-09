@@ -1,0 +1,61 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // catch-all deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    // Validation for User entity
+    function isValidUser(data) {
+      return data.keys().hasAll(['name', 'email', 'whatsapp', 'role', 'isVerified', 'expiresAt', 'createdAt'])
+        && data.keys().size() == 7
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 200
+        && data.email is string && data.email.size() > 0 && data.email.size() <= 200
+        && data.whatsapp is string && data.whatsapp.size() > 0 && data.whatsapp.size() <= 50
+        && data.role == 'user'
+        && data.isVerified is bool
+        && data.expiresAt is timestamp
+        && data.createdAt is timestamp;
+    }
+
+    // Users Collection
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      
+      allow create: if isOwner(userId) 
+        && isValidId(userId)
+        && isValidUser(incoming())
+        && incoming().email == request.auth.token.email // Integrity check: email must match auth
+        && incoming().createdAt == request.time; // Strict timestamp
+        
+      allow update: if isOwner(userId)
+        && isValidUser(incoming())
+        && incoming().createdAt == resource.data.createdAt // Immutable
+        && incoming().email == resource.data.email // Immutable
+        && (
+          // Action: Update profile info
+          incoming().diff(resource.data).affectedKeys().hasOnly(['name', 'whatsapp', 'expiresAt', 'isVerified'])
+        );
+        
+      allow delete: if false; // Users cannot delete their profiles
+    }
+  }
+}

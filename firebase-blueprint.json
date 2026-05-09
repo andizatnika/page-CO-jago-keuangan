@@ -1,0 +1,25 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile for Assistant Keuangan AI",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Full name" },
+        "email": { "type": "string", "format": "email", "description": "Email address" },
+        "whatsapp": { "type": "string", "description": "WhatsApp number" },
+        "role": { "type": "string", "enum": ["user"], "description": "User role" },
+        "isVerified": { "type": "boolean", "description": "Verification status" },
+        "expiresAt": { "type": "string", "format": "date-time", "description": "Subscription expiry date" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp" }
+      },
+      "required": ["name", "email", "whatsapp", "role", "isVerified", "expiresAt", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles indexed by UID"
+    }
+  }
+}
